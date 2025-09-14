@@ -18,6 +18,7 @@
 // ==================== CONFIGURATION ====================
 
 const TARGET_EMAILS = [
+  'dhruv@wezake.com'
   // 'former.employee@company.com',
   // 'freelancer@example.com'
   // Add emails to remove here - one per line

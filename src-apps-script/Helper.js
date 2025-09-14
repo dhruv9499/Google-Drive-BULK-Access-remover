@@ -173,7 +173,9 @@ function generateSummary(logs, totalFiles, startTimeStr) {
     byFileType: {},
     totalRemovals: 0,
     totalErrors: 0,
-    totalSkipped: 0
+    totalSkipped: 0,
+    totalFoundButCantRemove: 0,
+    filesNeedingManualReview: []
   };
   
   // Initialize email tracking
@@ -182,7 +184,9 @@ function generateSummary(logs, totalFiles, startTimeStr) {
       filesFound: 0,
       removals: 0,
       errors: 0,
-      skipped: 0
+      skipped: 0,
+      foundButCantRemove: 0,
+      needsManualReview: []
     };
   });
   
@@ -198,6 +202,7 @@ function generateSummary(logs, totalFiles, startTimeStr) {
         removed: 0,
         errors: 0,
         skipped: 0,
+        foundButCantRemove: 0,
         files: []
       };
     }
@@ -217,7 +222,30 @@ function generateSummary(logs, totalFiles, startTimeStr) {
       if (summary.byEmail[email]) {
         summary.byEmail[email].removals++;
       }
-    } else if (log.error) {
+    } else if (log.foundButCantRemove) {
+      typeStats.foundButCantRemove++;
+      summary.totalFoundButCantRemove++;
+      if (summary.byEmail[email]) {
+        summary.byEmail[email].foundButCantRemove++;
+      }
+      
+      // Add to files needing manual review
+      summary.filesNeedingManualReview.push({
+        title: log.title,
+        email: log.targetEmail,
+        fileType: log.fileType,
+        role: log.targetPermissionRole,
+        link: log.webViewLink
+      });
+      
+      if (summary.byEmail[email]) {
+        summary.byEmail[email].needsManualReview.push({
+          title: log.title,
+          role: log.targetPermissionRole,
+          link: log.webViewLink
+        });
+      }
+    } else if (log.error && !log.foundButCantRemove) {
       typeStats.errors++;
       summary.totalErrors++;
       if (summary.byEmail[email]) {
@@ -232,13 +260,16 @@ function generateSummary(logs, totalFiles, startTimeStr) {
     }
     
     // Add to file list if action taken
-    if (log.removed || log.error || log.skipped) {
+    if (log.removed || log.error || log.skipped || log.foundButCantRemove) {
       typeStats.files.push({
         title: log.title,
         email: log.targetEmail,
         removed: log.removed,
         error: log.error,
-        skipped: log.skipped
+        skipped: log.skipped,
+        foundButCantRemove: log.foundButCantRemove,
+        role: log.targetPermissionRole,
+        link: log.webViewLink
       });
     }
   }
