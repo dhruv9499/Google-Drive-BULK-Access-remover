@@ -1,0 +1,21 @@
+{
+  "name": "google-drive-bulk-access-remover",
+  "version": "1.0.0",
+  "description": "google drive bulk access remover",
+  "main": "code.js",
+  "scripts": {
+    "glogin": "clasp login",
+    "glogout": "clasp logout",
+    "gcreate": "clasp create --title google-drive-bulk-access-remover --rootDir ./src-apps-script",
+    "gclone": "clasp clone 156cHRxfungPRmYWCPSJI8JwK3y3nzwXg3ToyR7Wz8uj7fyVtSp60Y6BS --rootDir ./src-apps-script",
+    "gpull": "clasp pull",
+    "gpush": "clasp push",
+    "gstart": "clasp push --watch",
+    "gopen": "clasp open --webapp",
+    "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
+    "gpullWithVersion": "clasp pull --versionNumber 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
