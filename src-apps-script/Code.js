@@ -139,12 +139,15 @@ function processBatch() {
     console.log(`📧 Processing: ${currentEmail} (${currentEmailIndex + 1}/${TARGET_EMAILS.length})`);
     
     // Search for files shared with current email
+    // Using a more inclusive search approach to find all accessible files
     const searchQuery = `'${currentEmail}' in readers or '${currentEmail}' in writers or '${currentEmail}' in owners`;
     const filesResponse = Drive.Files.list({
       q: searchQuery,
       pageSize: CONFIG.BATCH_SIZE,
       pageToken: nextPageToken || undefined,
-      fields: 'nextPageToken, files(id, name, mimeType)'
+      fields: 'nextPageToken, files(id, name, mimeType)',
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true
     });
     
     const files = filesResponse.files || [];
@@ -232,6 +235,18 @@ function processFile(file, targetEmail) {
         
         console.error(`❌ Found ${targetEmail} as ${targetPermission.role} in "${file.name}" but cannot remove - insufficient permissions`);
         console.error(`🔗 File link: https://drive.google.com/file/d/${file.id}/view`);
+        console.error(`🔒 Error details: ${removeError.message}`);
+        
+        // Try to get the file owner information if possible
+        try {
+          const owner = permissions.find(p => p.role === 'owner');
+          if (owner && owner.emailAddress) {
+            fileInfo.ownerEmail = owner.emailAddress;
+            console.error(`👤 File owner: ${owner.emailAddress}`);
+          }
+        } catch(e) {
+          console.error(`⚠️ Could not determine file owner: ${e.message}`);
+        }
       }
     } else {
       console.log(`ℹ️ ${targetEmail} not found in "${file.name}" permissions`);

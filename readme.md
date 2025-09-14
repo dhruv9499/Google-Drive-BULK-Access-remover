@@ -47,7 +47,7 @@ startEmailCleanup();
 
 ### 1. Copy the Script
 
-**[📋 Click here to copy the Google Apps Script project](https://claude.ai/chat/YOUR_GAS_PROJECT_LINK)**
+**[📋 Click here to copy the Google Apps Script project](https://script.google.com/d/156cHRxfungPRmYWCPSJI8JwK3y3nzwXg3ToyR7Wz8uj7fyVtSp60Y6BS/edit?usp=sharing)**
 
 *(Just click "Make a copy" and you're ready to go!)*
 
@@ -103,13 +103,14 @@ checkStatus();
 
 Before running on all your files, test everything works:
 
-| Function                | What It Does                                     |
-| ----------------------- | ------------------------------------------------ |
-| `runDiagnostics()`    | **🩺 Full system check**- Tests everything |
-| `testDriveV3Access()` | Tests Drive API connection                       |
-| `testEmailSearch()`   | Tests searching for files with target emails     |
-| `checkStatus()`       | Shows current progress                           |
-| `stopProcess()`       | Emergency stop button                            |
+| Function                | What It Does                                                        |
+| ----------------------- | ------------------------------------------------------------------- |
+| `runDiagnostics()`    | **🩺 Full system check**- Tests everything                    |
+| `testDriveV3Access()` | Tests Drive API connection                                          |
+| `testEmailSearch()`   | Tests searching for files with target emails                        |
+| `checkStatus()`       | Shows current progress                                              |
+| `stopProcess()`       | Emergency stop button                                               |
+| `testForEdgeCases()`  | Tests for files with permission limitations (limited effectiveness) |
 
 ## ⚙️ How It Works
 
@@ -170,6 +171,22 @@ runDiagnostics();
 * **Permission Issues** : You can only remove access from files you own/manage
 * **Process Stuck** : Use `stopProcess()` and restart
 
+### 🔒 Known Limitation: Files with Limited Access
+
+The script **cannot detect or modify** files where:
+
+1. You have only Viewer or Commenter access
+2. The target email has Editor or higher access
+3. Another user owns the file
+
+This is due to a limitation in Google Drive's API that restricts permission searches based on your access level. Even though you can see these files in the Drive UI, the API does not return them in search queries.
+
+**Solution for these edge cases:**
+
+- Have the file owner run the script instead
+- Manually remove access through the Google Drive web interface
+- Use admin tools if you have domain administrator privileges
+
 ## 📈 Performance
 
 * **Small Organizations** (~100-500 files): 5-15 minutes
@@ -212,13 +229,17 @@ This project is licensed under the MIT License - see the [LICENSE](https://claud
 
 ## 🎉 Ready to Reclaim Your Friday Evening?
 
-1. **[📋 Copy the script](https://claude.ai/chat/YOUR_GAS_PROJECT_LINK)**
+1. **[📋 Copy the script](https://script.google.com/d/156cHRxfungPRmYWCPSJI8JwK3y3nzwXg3ToyR7Wz8uj7fyVtSp60Y6BS/edit?usp=sharing)**
 2. Enable Drive API in Services
 3. Add your target emails
 4. Run `startEmailCleanup()`
 5. Go do something more interesting!
 
 **Questions? Issues?** Open an issue or check the troubleshooting section above.
+
+
+# **Sample Email Image**
+
 
 ---
 

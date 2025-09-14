@@ -8,6 +8,142 @@
 // ==================== TESTING FUNCTIONS ====================
 
 /**
+ * Test edge case detection for files where current user has limited access
+ * but target email has higher permissions.
+ * 
+ * NOTE: Due to Google Drive API limitations, this function may not be able to detect
+ * all files where the user has limited access rights. This is a known limitation
+ * of the Drive API when querying permissions.
+ * 
+ * @deprecated This function attempts to address a Drive API limitation but may not work
+ * for all edge cases. See readme.md for more information about this limitation.
+ */
+function testEdgeCaseDetection() {
+  if (TARGET_EMAILS.length === 0) {
+    console.log('❌ No target emails configured in TARGET_EMAILS array');
+    return { success: false, error: 'No target emails configured' };
+  }
+  
+  const testEmail = TARGET_EMAILS[0];
+  console.log(`🔍 EDGE CASE TEST: Searching for ALL files where ${testEmail} appears in ANY role`);
+  console.log(`🧪 This test uses advanced search parameters to find files that might be missed`);
+  
+  const currentUserEmail = Session.getActiveUser().getEmail();
+  console.log(`👤 Current user: ${currentUserEmail}`);
+  
+  try {
+    // 1. First try the exact search query used in the main process
+    const regularQuery = `'${testEmail}' in readers or '${testEmail}' in writers or '${testEmail}' in owners`;
+    
+    console.log(`\n📊 TEST 1: Using standard search query: "${regularQuery}"`);
+    const regularResponse = Drive.Files.list({
+      q: regularQuery,
+      pageSize: 100,
+      fields: 'files(id, name, mimeType, permissions(emailAddress, role, type))',
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true
+    });
+    
+    const regularFiles = regularResponse.files || [];
+    console.log(`✅ Standard search found ${regularFiles.length} files with ${testEmail}`);
+    
+    // 2. Then try a more aggressive search approach
+    console.log(`\n📊 TEST 2: Using more advanced search to find edge cases`);
+    const testResults = [];
+    let totalFound = 0;
+    
+    // Try different specialized queries
+    const specialQueries = [
+      `'${testEmail}' in readers`,
+      `'${testEmail}' in writers`, 
+      `'${testEmail}' in owners`,
+      // Using raw query which might catch other cases
+      `permissions.emailAddress = '${testEmail}'`
+    ];
+    
+    for (const query of specialQueries) {
+      try {
+        console.log(`🔎 Trying query: "${query}"`);
+        const response = Drive.Files.list({
+          q: query,
+          pageSize: 50,
+          fields: 'files(id, name, mimeType, permissions(emailAddress, role, type), capabilities(canEdit, canComment, canShare))',
+          includeItemsFromAllDrives: true,
+          supportsAllDrives: true
+        });
+        
+        const files = response.files || [];
+        totalFound += files.length;
+        console.log(`   Found ${files.length} files with this query`);
+        
+        // Analyze each file's permissions
+        for (const file of files) {
+          const targetPerm = file.permissions ? 
+            file.permissions.find(p => p.emailAddress === testEmail) : null;
+          
+          const targetRole = targetPerm ? targetPerm.role : 'Unknown';
+          const currentUserCaps = {
+            canEdit: file.capabilities?.canEdit || false,
+            canComment: file.capabilities?.canComment || false,
+            canShare: file.capabilities?.canShare || false
+          };
+          
+          // Add to test results
+          testResults.push({
+            id: file.id,
+            name: file.name,
+            mimeType: file.mimeType,
+            targetEmailRole: targetRole,
+            currentUserCaps: currentUserCaps,
+            link: `https://drive.google.com/file/d/${file.id}/view`
+          });
+          
+          console.log(`   📄 ${file.name}`);
+          console.log(`      - Target email (${testEmail}): ${targetRole} access`);
+          console.log(`      - Your permissions: ${JSON.stringify(currentUserCaps)}`);
+          console.log(`      - Link: https://drive.google.com/file/d/${file.id}/view`);
+        }
+      } catch (queryError) {
+        console.error(`❌ Error with query "${query}": ${queryError.message}`);
+      }
+    }
+    
+    // Summarize results
+    console.log(`\n📋 SUMMARY:`);
+    console.log(`Found total of ${testResults.length} unique files across all queries`);
+    
+    // Count by permission combinations
+    const edgeCases = testResults.filter(r => 
+      r.targetEmailRole === 'writer' && 
+      !r.currentUserCaps.canEdit && 
+      !r.currentUserCaps.canShare);
+    
+    console.log(`\n⚠️ EDGE CASES DETECTED: ${edgeCases.length} files`);
+    console.log(`These are files where ${testEmail} has editor access but you don't have permission to modify sharing:`);
+    
+    if (edgeCases.length > 0) {
+      edgeCases.forEach((file, i) => {
+        console.log(`${i+1}. "${file.name}"`);
+        console.log(`   - Your access: ${file.currentUserCaps.canComment ? 'Commenter' : 'Viewer'}`);
+        console.log(`   - Link: ${file.link}`);
+      });
+    }
+    
+    return { 
+      success: true, 
+      totalFilesFound: testResults.length,
+      edgeCasesFound: edgeCases.length,
+      edgeCases: edgeCases,
+      testEmail: testEmail
+    };
+    
+  } catch (error) {
+    console.error('❌ Edge case test failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Test Drive API v3 connection and basic functionality
  */
 function testDriveV3Access() {
@@ -61,7 +197,9 @@ function testEmailSearch() {
       q: searchQuery,
       pageSize: 10,
       fields: 'files(id, name, mimeType, permissions(emailAddress, role))',
-      orderBy: 'modifiedTime desc'
+      orderBy: 'modifiedTime desc',
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true
     });
     
     const files = response.files || [];
@@ -106,6 +244,7 @@ function runDiagnostics() {
     driveAPI: false,
     emailsConfigured: false,
     emailSearch: false,
+    edgeCaseDetection: false,
     ready: false
   };
   
@@ -139,11 +278,29 @@ function runDiagnostics() {
   
   console.log('\n');
   
+  // Note: Edge Case Detection test removed from standard diagnostics
+  // due to Drive API limitations. See testForEdgeCases() function and readme.md
+  // for more information about this limitation.
+  
+  console.log('\n');
+  console.log('4️⃣ About edge case detection:');
+  console.log('⚠️ Due to Drive API limitations, some files where you have limited access');
+  console.log('   (viewer/commenter) may not be detected by this script.');
+  console.log('   Please see readme.md section "Known Limitation: Files with Limited Access"');
+  console.log('   for more information about this limitation.');
+  
+  results.edgeCaseDetection = true; // No longer affects ready status
+  
+  console.log('\n');
+  
   // Final Assessment
   console.log('📊 DIAGNOSTIC SUMMARY:');
   console.log(`Drive API v3: ${results.driveAPI ? '✅' : '❌'}`);
   console.log(`Emails Configured: ${results.emailsConfigured ? '✅' : '❌'}`);
   console.log(`Email Search: ${results.emailSearch ? '✅' : '❌'}`);
+  if (results.edgeCaseDetection !== undefined) {
+    console.log(`Edge Case Detection: ${results.edgeCaseDetection ? '✅' : '❌'}`);
+  }
   
   results.ready = results.driveAPI && results.emailsConfigured && results.emailSearch;
   
@@ -156,6 +313,21 @@ function runDiagnostics() {
   }
   
   return results;
+}
+
+/**
+ * Test specifically for edge cases - files with permission issues
+ * Use this function to find files where you have limited access
+ * but target emails have higher permissions
+ * 
+ * @deprecated Due to Google Drive API limitations, this function may not detect all files
+ * where permissions prevent automated removal. See readme.md for more information.
+ */
+function testForEdgeCases() {
+  console.log('🔎 Running edge case detection test...');
+  console.log('⚠️ Warning: This test has limited effectiveness due to Drive API restrictions');
+  console.log('   See readme.md section "Known Limitation: Files with Limited Access" for details');
+  return testEdgeCaseDetection();
 }
 
 // ==================== REPORTING FUNCTIONS ====================
@@ -175,7 +347,13 @@ function generateSummary(logs, totalFiles, startTimeStr) {
     totalErrors: 0,
     totalSkipped: 0,
     totalFoundButCantRemove: 0,
-    filesNeedingManualReview: []
+    filesNeedingManualReview: [],
+    accessStats: {
+      noAccess: 0,
+      viewerAccess: 0,
+      commenterAccess: 0,
+      editorAccess: 0
+    }
   };
   
   // Initialize email tracking
@@ -235,14 +413,16 @@ function generateSummary(logs, totalFiles, startTimeStr) {
         email: log.targetEmail,
         fileType: log.fileType,
         role: log.targetPermissionRole,
-        link: log.webViewLink
+        link: log.webViewLink,
+        ownerEmail: log.ownerEmail || 'Unknown owner'
       });
       
       if (summary.byEmail[email]) {
         summary.byEmail[email].needsManualReview.push({
           title: log.title,
           role: log.targetPermissionRole,
-          link: log.webViewLink
+          link: log.webViewLink,
+          ownerEmail: log.ownerEmail || 'Unknown owner'
         });
       }
     } else if (log.error && !log.foundButCantRemove) {
@@ -332,6 +512,7 @@ You likely have <strong>view-only</strong> access to these files while the targe
 <li style="margin-bottom: 8px;">
   <strong><a href="${file.link}" target="_blank" style="color: #1a73e8; text-decoration: none;">${file.title}</a></strong>
   <br><span style="color: #5f6368; font-size: 14px;">${file.fileType} • ${file.role} access • 
+  Owner: ${file.ownerEmail} • 
   <a href="${file.link}" target="_blank" style="color: #1a73e8;">Open File</a></span>
 </li>`;
       });
@@ -419,10 +600,10 @@ or share these links with file owners/admins who have the necessary permissions.
   emailBody += `
 <hr style="margin: 30px 0; border: none; border-top: 1px solid #dadce0;">
 <p style="color: #5f6368; font-size: 14px;">
-<strong>Google Drive Email Access Remover v1.0</strong><br>
+<strong>Google Drive Email Access Remover v1.0 by Dhruv Barot(dhruvbarot579@gmail.com)</strong><br>
 Process completed at ${new Date(summary.endTime).toLocaleString()}<br>
-Generated by Google Apps Script
-</p>
+Generated by Google Apps Script by Dhruv Barot(dhruvbarot579@gmail.com)
+</p
 
 </div>
 `;
