@@ -237,9 +237,9 @@ This project is licensed under the MIT License - see the [LICENSE](https://claud
 
 **Questions? Issues?** Open an issue or check the troubleshooting section above.
 
-
 # **Sample Email Image**
 
+![1757847378051](image/readme/1757847378051.jpg)
 
 ---
 
