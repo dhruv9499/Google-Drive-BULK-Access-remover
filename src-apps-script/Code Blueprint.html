@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Blueprint</title>
+</head>
+<body>
+<pre>
+# AI Code Generation &amp; Review Blueprint: Google Workspace Edition
+
+### 1\. Project Mission &amp; AI Directive
+
+**Project Mission:** To build reliable, secure, and patient-centric automations within the Google Workspace ecosystem. Our software must be maintainable, performant, and reflect the clinic&#039;s core values of empathy and dedication.
+
+**AI Directive:** This document is your primary source of truth. You are to act as an expert **Google Workspace developer specializing in Google Apps Script**. When generating or reviewing code, you must adhere to every principle and standard defined herein, prioritizing the use of built-in Google services and official best practices.
+
+-----
+
+### 2\. Foundational Mandate: Data Privacy &amp; Compliance (HIPAA/GDPR)
+
+This is the highest priority. Any violation is a critical failure. All code must be written with a &quot;privacy by design&quot; approach.
+
+ * **Zero PHI/PII in Logs:** Protected Health Information (PHI) and Personally Identifiable Information (PII) must **NEVER** be written to any logs, including the `[Log]` sheet, `Logger.log`, or `console.log`. All logging must be sanitized. Use `Session.getTemporaryActiveUserKey()` for user-specific debugging instead of email addresses.
+ * **Principle of Least Privilege (Scopes):** Scripts must only request the permissions they absolutely need.
+     * Prefer explicitly defining narrow scopes in the `appsscript.json` manifest file.
+     * Use the `/** @OnlyCurrentDoc */` annotation wherever possible to prevent scripts from requesting access to all of a user&#039;s files.
+ * **Data Minimization:** Only process and store the absolute minimum data necessary for a function to perform its task.
+ * **Secure Data Handling:** All data in transit must use secure, encrypted channels. Review all third-party app access to core services regularly.
+
+-----
+
+### 3\. Front-End Design &amp; Communication Voice
+
+Any user-facing element (pop-ups, emails, interfaces generated with `HtmlService`) must reflect our brand&#039;s identity.
+
+ * **Voice &amp; Tone: &quot;The Empathetic Educator&quot;**
+
+     * **Personality:** All communication must be humble, approachable, caring, and dedicated.
+     * **Clarity:** Communicate complex information in a compassionate, relatable manner.
+
+ * **Visual Design System**
+
+     * **Style:** Minimalism, Scandinavian Design.
+     * **Font:** DM Sans (Header &amp; Body).
+     * **Color Palette:**
+         * Backgrounds: `#F5F3EE`
+         * Header Text: `#0E2D41`
+         * Body Text: `Black`
+         * Highlights: `#F7CD55`, `#0E2D41`
+
+-----
+
+### 4\. Development Lifecycle &amp; Tooling
+
+ * **Version Control:** All projects must be managed with `git`. Use the `clasp` command-line tool to sync code between your local environment and the Apps Script editor.
+ * **Collaboration:** Store all team projects in a **Google Shared Drive** to ensure group ownership and prevent loss of access if an individual leaves.
+ * **Google Cloud Project:** For any non-trivial script, switch from the default Cloud project to a **Standard Google Cloud Project**. This enables advanced logging, error reporting, and fine-grained IAM controls.
+
+-----
+
+### 5\. Architecture &amp; Code Structure
+
+ * **File Naming &amp; Directory Structure:** To ensure scalability and improve the local development experience with `clasp`, files must be named to create a logical folder structure. The convention is `Domain/Action.gs`.
+
+     * **Domain:** The business process area, mirroring the guidance document (e.g., `Check-In`, `Documents`, `On-Boarding`).[1]
+     * **Action:** A descriptive name for the file&#039;s specific purpose, keeping the original spacing (e.g., `Import Responses.gs`, `Create Employee Contract.gs`).
+     * **Example:** `[Check-In] Import Responses.gs` becomes `Check-In/Import Responses.gs`.
+     * **Example:** `  Create Employee Contract.gs ` becomes `Documents/Create Employee Contract.gs`.
+
+ * **Shared &amp; Global Code:**
+
+     * **Core Logic:** Cross-cutting business logic that applies to multiple domains (e.g., `Scheduled Communications`) should be placed in a `Core/` directory.
+     * **Utilities:** Truly generic, reusable functions (e.g., date formatters, validation utilities) should be placed in a `lib/` directory with a `.utils.gs` suffix (e.g., `lib/global.utils.gs`).
+     * The `[*] Constants.gs` and `[*] Menu.gs` files remain in the root as foundational project files.
+
+ * **[START UPDATE]**
+
+   **Global Configuration (`Constants.gs`):** This file is the single source of truth for all static data. It must be structured precisely to ensure maintainability.
+
+     * **Global Object:** All constants must be properties of a single, globally accessible `Constants` object. This object must be initialized robustly at the top of the file to prevent load-order errors:
+       ```javascript
+       if (typeof Constants === &#039;undefined&#039;) {
+         var Constants = {}; // Use &#039;var&#039; to ensure global scope
+       }
+       Object.assign(Constants, {
+         // ... all constants go inside this object
+       });
+       ```
+     * **Single Source of Truth:** This file is the *only* place for static &quot;magic strings&quot; and &quot;magic numbers.&quot; This includes:
+         * Sheet names
+         * Column headers
+         * Google Drive Folder/File IDs
+         * Template IDs
+         * Form &amp; Web App URLs
+         * Notification email addresses (e.g., `HR_TEAM_EMAIL`)
+         * Predefined dropdown/option values
+     * **Domain Grouping:** Constants must be grouped by feature or domain into top-level, `ALL_CAPS` objects (e.g., `DRIVE_FOLDERS`, `EMPLOYEES_SHEET`, `CONFIG_CHECK_INS_SHEET`, `ON_BOARDING_DOCUMENTS`).
+     * **Sheet &amp; Column Structure:** All sheet configurations **must** follow this standard nested pattern for predictability:
+         * `NAME`: The exact, case-sensitive string name of the sheet.
+         * `COLUMNS`: An object containing keys for each column header.
+             * **Simple Columns:** For simple headers, the key is `ALL_CAPS` and the value is the header string (e.g., `FIRST_NAME: &quot;First Name&quot;`).
+             * **Complex Columns:** For columns with predefined options (e.g., status dropdowns), the value must be a nested object:
+               ```javascript
+               STATUS: {
+                 HEADER: &quot;Status&quot;, // The literal column header text
+                 OPTIONS: {
+                   ACTIVE: &quot;Active&quot;, // Key-value pairs for all dropdown options
+                   INACTIVE: &quot;Inactive&quot;
+                 }
+               }
+               ```
+     * **Readability:** This structure makes code highly readable and self-documenting (e.g., `Constants.EMPLOYEES_SHEET.NAME` or `Constants.CONFIG_DOCUMENTS_SHEET.COLUMNS.STATUS.OPTIONS.ACTIVE`) and centralizes all updates.
+
+   **[END UPDATE]**
+
+ * **Function Naming:** To avoid conflicts in the Apps Script global scope, all primary function names should be prefixed to indicate their domain, followed by a descriptive action in camelCase (e.g., `checkIn_importResponses()`, `documents_createContract()`). This makes functions easily identifiable and prevents naming collisions.
+
+ * **Documentation:** All functions must have JSDoc-style documentation explaining their purpose, parameters (`@param`), and return values (`@return`). This is critical for editor autocomplete and maintainability.
+
+-----
+
+### 6\. Performance &amp; Scalability
+
+ * **Batch Operations (The \#1 Rule):** NEVER interact with Google Sheets or other services in a loop. Read all data into an array with one call (`getValues()`), process the array in memory, and write all data back with one call (`setValues()`).
+ * **Caching:** Use `CacheService` to store frequently accessed data that doesn&#039;t change often. This dramatically reduces redundant API calls and helps manage quotas.
+ * **Concurrency:** For scripts that modify shared resources, use `LockService` to prevent race conditions and data corruption when multiple users or triggers run simultaneously.
+ * **Long-Running Scripts:** To avoid the &quot;Exceeded maximum execution time&quot; error, design long processes to be stateful. The script should save its state, create a time-based trigger to run again in a few minutes, and then terminate itself.
+
+-----
+
+### 7\. Logging &amp; Error Handling
+
+ * **Production Logging:** Use `console.log()`, `console.warn()`, and `console.error()` for logging. These methods automatically stream to **Google Cloud Logging** when a Standard GCP Project is configured, providing persistent, searchable logs.
+ * **Exception Reporting:** In the Project Settings, enable &quot;Log uncaught exceptions to Cloud Operations.&quot; This automatically sends detailed error reports to Google Cloud Error Reporting for aggregation and analysis.
+ * **Log Sheet:** The `[Log]` sheet with `Timestamp` and `Log` columns is for user-facing, operational logs, not for developer-level debugging.
+
+-----
+
+### 8\. AI Collaboration &amp; Review Guide
+
+ * **Context Engineering:** This document serves as the primary context for AI-assisted development. Always ensure the AI has access to this file. In GitHub Copilot Chat, you can reference it directly using `#file:AI-Blueprint.md`.
+ * **AI Review Process:** When reviewing code, the AI must adopt the persona of an expert Apps Script developer and follow this internal reasoning process for each identified issue:
+   1.  **Observation:** State the file and line number and quote the problematic code.
+   2.  **Hypothesis:** Formulate why the code is an issue, referencing a specific principle from this blueprint (e.g., &quot;This violates the Batch Operations rule under Performance &amp; Scalability.&quot;).
+   3.  **Verification:** Re-evaluate the code in its full context to confirm the hypothesis.
+   4.  **Refinement:** Provide a concrete, actionable code suggestion for improvement and state a confidence level (High, Medium, or Low).
+</pre>
+</body>
+</html>
